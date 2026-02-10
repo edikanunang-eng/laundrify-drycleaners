@@ -1,29 +1,71 @@
 {
   "expo": {
-    "name": "laundrify",
-    "slug": "laundrify",
+    "name": "Laundrify DryCleaners",
+    "slug": "laundrify-drycleaners",
     "version": "1.0.0",
     "orientation": "portrait",
+    "scheme": "laundrify-drycleaners",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
-    "newArchEnabled": true,
+    "userInterfaceStyle": "automatic",
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#bbd2f0",
+      "duration": 3000,
+      "imageStyle": {
+        "width": 180,
+        "height": 180
+      }
     },
+    "updates": {
+      "fallbackToCacheTimeout": 0
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "icon": "./assets/icon.png",
+      "bundleIdentifier": "com.edikan.laundrifydrycleaners",
+      "googleServicesFile": "./GoogleService-Info.plist",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#bbd2f0"
       },
-      "edgeToEdgeEnabled": true
+      "package": "com.edikan.laundrifydrycleaners",
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#bbd2f0"
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "b6aa89ad-7078-42cc-9a09-e4e0437dcdc0"
+      },
+      "firebaseConfig": {
+        "apiKey": "AIzaSyAAzR567g2PQGRFYVt8bBZ5MJWOZ3FVSHQ",
+        "authDomain": "laundrify-ad7d9.firebaseapp.com",
+        "projectId": "laundrify-ad7d9",
+        "storageBucket": "laundrify-ad7d9.firebasestorage.app",
+        "messagingSenderId": "794067729526",
+        "appId": "1:794067729526:web:9e5c852aa09d21eb1bf357",
+        "measurementId": "G-595G56VEBL"
+      }
     }
   }
 }

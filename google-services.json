@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "794067729526",
+    "project_id": "laundrify-ad7d9",
+    "storage_bucket": "laundrify-ad7d9.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:794067729526:android:56bfd968047dd08c1bf357",
+        "android_client_info": {
+          "package_name": "com.edikan.laundrifydrycleaners"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC5GQ_Y0ILlCn5A3VCEaNIX7aoXrCcGJmw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
