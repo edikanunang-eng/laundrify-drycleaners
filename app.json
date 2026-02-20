@@ -51,7 +51,8 @@
           "icon": "./assets/icon.png",
           "color": "#bbd2f0"
         }
-      ]
+      ],
+      "expo-mail-composer"
     ],
     "extra": {
       "eas": {
