@@ -40,3 +40,4 @@ yarn-error.*
 /ios
 /android
 GoogleService-Info.plistgoogle-services.json.env*.key
+google-services.json
