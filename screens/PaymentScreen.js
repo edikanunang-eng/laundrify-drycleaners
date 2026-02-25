@@ -8,7 +8,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { supabase } from '../supabase';
 
 // PAYSTACK CONFIGURATION
-const PAYSTACK_PUBLIC_KEY = 'pk_live_170dab9b7e043a11123cf133c6996f085162e7ef';
+const PAYSTACK_PUBLIC_KEY = 'pk_test_67fc651PbWWqgKDBDorh525uecKaGZD21FGSoCeR';
 
 // Common Nigerian Bank List for Payouts (Paystack bank codes)
 const NIGERIAN_BANKS = [

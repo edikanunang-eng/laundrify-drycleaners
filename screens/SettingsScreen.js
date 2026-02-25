@@ -136,12 +136,12 @@ export default function SettingsScreen({ isDarkMode, setIsDarkMode }) {
     const isAvailable = await MailComposer.isAvailableAsync();
     if (isAvailable) {
       await MailComposer.composeAsync({
-        recipients: ['unangtech-s@execs.com'],
-        subject: `Bug Report - ${Platform.OS}`,
+        recipients: ['help@laundrify.com.ng'],
+        subject: `Issue Report - ${Platform.OS}`,
         body: `\n\n--- Device Info ---\nOS: ${Platform.OS} ${Platform.Version}\nModel: ${Device.modelName}`,
       });
     } else {
-      Alert.alert("Support", "Please email: unangtech-s@execs.com");
+      Alert.alert("Support", "Please email: help@laundrify.com.ng");
     }
   };
 
@@ -191,11 +191,11 @@ export default function SettingsScreen({ isDarkMode, setIsDarkMode }) {
             onPress={handleClearCache}
           >
             <Text style={[styles.settingText, { color: theme.text }]}>Clear App Cache</Text>
-            <Text style={[styles.subText, { color: theme.subText }]}>Free up space used by images/temp data</Text>
+            <Text style={[styles.subText, { color: theme.subText }]}>Free up space used</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.actionItem} onPress={handleReportBug}>
-            <Text style={[styles.settingText, { color: theme.text }]}>Report a Bug</Text>
+            <Text style={[styles.settingText, { color: theme.text }]}>Report a issue</Text>
             <Text style={[styles.subText, { color: theme.subText }]}>Check your spam folder if you don't see our reply in your inbox.</Text>
           </TouchableOpacity>
         </View>
@@ -206,7 +206,7 @@ export default function SettingsScreen({ isDarkMode, setIsDarkMode }) {
             onPress={handleLogout}
             disabled={loading}
           >
-            {loading ? <ActivityIndicator color="#FF3B30" /> : <Text style={styles.logoutText}>Logout</Text>}
+            {loading ? <ActivityIndicator color="#FF3B30" /> : <Text style={styles.logoutText}>➜] Logout</Text>}
           </TouchableOpacity>
         </View>
       </ScrollView>

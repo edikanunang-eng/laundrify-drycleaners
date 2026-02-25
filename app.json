@@ -49,7 +49,8 @@
         "expo-notifications",
         {
           "icon": "./assets/icon.png",
-          "color": "#bbd2f0"
+          "color": "#bbd2f0",
+          "sounds": ["./assets/notification-sound.wav"]
         }
       ],
       "expo-mail-composer"

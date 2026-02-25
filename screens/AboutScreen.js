@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -7,11 +7,15 @@ import {
   TouchableOpacity, 
   Linking, 
   Image,
-  Platform 
+  Platform,
+  ActivityIndicator
 } from 'react-native';
+import { getAppLink } from '../appLinksHelper';
 
 export default function AboutScreen({ isDarkMode }) {
   const [expandedFaq, setExpandedFaq] = useState(null);
+  const [partnerAppLink, setPartnerAppLink] = useState(null);
+  const [loadingLinks, setLoadingLinks] = useState(true);
 
   // --- THEME COLORS ---
   const theme = {
@@ -46,6 +50,17 @@ export default function AboutScreen({ isDarkMode }) {
     }
   ];
 
+  // Fetch app links on mount
+  useEffect(() => {
+    const fetchLinks = async () => {
+      setLoadingLinks(true);
+      const partnerLink = await getAppLink('partner');
+      setPartnerAppLink(partnerLink);
+      setLoadingLinks(false);
+    };
+    fetchLinks();
+  }, []);
+
   const openLink = (url) => {
     Linking.openURL(url).catch(() => {
       alert("Could not open link");
@@ -57,19 +72,30 @@ export default function AboutScreen({ isDarkMode }) {
   };
 
   const handleRateApp = () => {
-    // Dummy store links - replace these with your actual Store IDs later
-    const appleStoreLink = 'itms-apps://itunes.apple.com/app/idYOUR_ID';
-    const googlePlayLink = 'market://details?id=YOUR_PACKAGE_NAME';
+    if (!partnerAppLink) return;
     
-    const url = Platform.OS === 'ios' ? appleStoreLink : googlePlayLink;
-    
-    Linking.openURL(url).catch(() => {
-      // Fallback to browser link if store app fails to open
-      const webUrl = Platform.OS === 'ios' 
-        ? 'https://apps.apple.com/app/idYOUR_ID' 
-        : 'https://play.google.com/store/apps/details?id=YOUR_PACKAGE_NAME';
-      openLink(webUrl);
-    });
+    // For iOS, try opening the app with a special URL scheme first
+    // For Android, use market:// if available
+    if (Platform.OS === 'ios') {
+      // Try to open ratings page directly (if it's an App Store link)
+      const ratingUrl = partnerAppLink.includes('apps.apple.com') 
+        ? partnerAppLink + '?action=write-review'
+        : partnerAppLink;
+      
+      Linking.openURL(ratingUrl).catch(() => {
+        // Fallback to regular link
+        openLink(partnerAppLink);
+      });
+    } else {
+      // Android
+      const marketUrl = partnerAppLink.includes('play.google.com')
+        ? partnerAppLink.replace('https://play.google.com/store/apps/details?id=', 'market://details?id=')
+        : partnerAppLink;
+      
+      Linking.openURL(marketUrl).catch(() => {
+        openLink(partnerAppLink);
+      });
+    }
   };
 
   return (
@@ -104,9 +130,14 @@ export default function AboutScreen({ isDarkMode }) {
         <TouchableOpacity 
           style={[styles.rateCard, { backgroundColor: theme.card, borderColor: theme.border }]}
           onPress={handleRateApp}
+          disabled={loadingLinks}
         >
           <Text style={styles.rateIcon}>⭐</Text>
-          <Text style={[styles.rateText, { color: theme.text }]}>Enjoying the app? Rate us on the Store!</Text>
+          {loadingLinks ? (
+            <ActivityIndicator size="small" color={theme.accent} />
+          ) : (
+            <Text style={[styles.rateText, { color: theme.text }]}>Enjoying the app? Rate us on the Store!</Text>
+          )}
         </TouchableOpacity>
 
         {/* Socials & Links */}
@@ -116,13 +147,19 @@ export default function AboutScreen({ isDarkMode }) {
             style={[styles.socialBtn, { backgroundColor: theme.card, borderColor: theme.border }]}
             onPress={() => openLink('https://x.com/unangtech')}
           >
-            <Text style={styles.socialBtnText}>𝕏 Twitter</Text>
+            <View style={styles.socialBtnContent}>
+              <Image source={require('../assets/twitter.png')} style={styles.socialIcon} />
+              <Text style={styles.socialBtnText}>𝕏</Text>
+            </View>
           </TouchableOpacity>
           <TouchableOpacity 
             style={[styles.socialBtn, { backgroundColor: theme.card, borderColor: theme.border }]}
-            onPress={() => openLink('https://example.com/instagram')}
+            onPress={() => openLink('https://www.instagram.com/unangtech/')}
           >
-            <Text style={styles.socialBtnText}>📸 Instagram</Text>
+            <View style={styles.socialBtnContent}>
+              <Image source={require('../assets/instagram.png')} style={styles.socialIcon} />
+              <Text style={styles.socialBtnText}>Instagram</Text>
+            </View>
           </TouchableOpacity>
         </View>
 
@@ -149,11 +186,11 @@ export default function AboutScreen({ isDarkMode }) {
 
         {/* Footer Links (Legal) */}
         <View style={styles.legalLinks}>
-          <TouchableOpacity onPress={() => openLink('https://example.com/privacy')}>
+          <TouchableOpacity onPress={() => openLink('https://laundrify.com.ng/privacy-policy')}>
             <Text style={[styles.legalText, { color: theme.accent }]}>Privacy Policy</Text>
           </TouchableOpacity>
           <View style={[styles.dot, { backgroundColor: theme.subText }]} />
-          <TouchableOpacity onPress={() => openLink('https://example.com/terms')}>
+          <TouchableOpacity onPress={() => openLink('https://laundrify.com.ng/terms-of-service')}>
             <Text style={[styles.legalText, { color: theme.accent }]}>Terms of Service</Text>
           </TouchableOpacity>
         </View>
@@ -215,6 +252,8 @@ const styles = StyleSheet.create({
   socialRow: { flexDirection: 'row', justifyContent: 'space-between', width: '100%', marginBottom: 25 },
   socialBtn: { paddingVertical: 12, paddingHorizontal: 20, borderRadius: 12, borderWidth: 1, width: '48%', alignItems: 'center' },
   socialBtnText: { fontWeight: '600', fontSize: 14, color: '#007AFF' },
+  socialBtnContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
+  socialIcon: { width: 20, height: 20, marginRight: 10 },
   faqItem: { width: '100%', padding: 15, borderRadius: 12, borderWidth: 1, marginBottom: 10 },
   faqQuestionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   faqQuestion: { fontSize: 15, fontWeight: '600', flex: 0.9 },

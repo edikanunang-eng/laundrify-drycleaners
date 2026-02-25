@@ -171,7 +171,7 @@ export default function App() {
             fontSize: 14, 
             color: theme.text === '#ffffff' ? '#aaa' : '#666' 
           }}>
-            v1.0.0
+          Manage a laundry business and earn at your convinience!
           </Text>
         </View>
 
@@ -232,14 +232,14 @@ export default function App() {
 
   <Drawer.Screen 
     name="Settings" 
-    options={{ drawerLabel: '⚙️ Settings' }}
+    options={{ drawerLabel: '⚙ Settings' }}
   >
     {(props) => <SettingsScreen {...props} isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />}
   </Drawer.Screen>
 
   <Drawer.Screen 
     name="About" 
-    options={{ drawerLabel: 'ℹ️ About' }}
+    options={{ drawerLabel: 'ⓘ About' }}
   >
     {(props) => <AboutScreen {...props} isDarkMode={isDarkMode} />}
   </Drawer.Screen>

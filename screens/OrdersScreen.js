@@ -142,21 +142,48 @@ export default function OrdersScreen({ isDarkMode }) {
     fetchOrders();
   }, [fetchOrders]);
 
-  // --- REALTIME SUBSCRIPTION ---
-  useEffect(() => {
-    if (!laundryId) return;
-    const subscription = supabase
-      .channel('laundry-orders')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'orders', filter: `laundry_id=eq.${laundryId}` },
-        (payload) => {
+// --- FIXED REALTIME SUBSCRIPTION ---
+useEffect(() => {
+  if (!laundryId) return;
+
+  const subscription = supabase
+    .channel('laundry-orders')
+    .on(
+      'postgres_changes',
+      { 
+        event: 'UPDATE', // Change from INSERT to UPDATE
+        schema: 'public', 
+        table: 'orders', 
+        filter: `laundry_id=eq.${laundryId}` 
+      },
+      (payload) => {
+        // ONLY trigger if the new status is 'paid' and the old status wasn't 'paid'
+        if (payload.new.status === 'paid' && payload.old.status !== 'paid') {
           playNotificationSound();
           if (activeTab !== 'Ongoing') setHasNewOrder(true);
-          Alert.alert("New Order! 🔔", `Customer ${payload.new.customer_name} just requested laundry services!`);
-          if (activeTab === 'Ongoing') setOrders((prev) => [payload.new, ...prev]);
+          
+          Alert.alert(
+            "New Paid Order! 🔔", 
+            `Customer ${payload.new.customer_name} has just paid for an order!`
+          );
+          
+          if (activeTab === 'Ongoing') {
+            // Update the list: if the order is already there, update it; if not, add it.
+            setOrders((prev) => {
+              const exists = prev.find(o => o.id === payload.new.id);
+              if (exists) {
+                return prev.map(o => o.id === payload.new.id ? payload.new : o);
+              }
+              return [payload.new, ...prev];
+            });
+          }
         }
-      ).subscribe();
-    return () => supabase.removeChannel(subscription);
-  }, [laundryId, activeTab]);
+      }
+    )
+    .subscribe();
+
+  return () => supabase.removeChannel(subscription);
+}, [laundryId, activeTab]);
 
   const handleTabSwitch = (tabName) => {
     setActiveTab(tabName);
@@ -172,6 +199,17 @@ export default function OrdersScreen({ isDarkMode }) {
     try {
       const { error } = await supabase.from('orders').update({ status: newStatus }).eq('id', orderId);
       if (error) throw error;
+      try {
+        await supabase.functions.invoke('send-order-notif', {
+          body: { 
+            record: { ...selectedOrder, status: newStatus }, // Pass the updated order
+            type: 'customer_update' 
+          }
+        });
+        console.log("Customer notified via Edge Function");
+      } catch (pushErr) {
+        console.error("Failed to trigger push notification:", pushErr);
+      }
       setSelectedOrder(null);
       fetchOrders(false);
       if (newStatus === 'ready') {
@@ -196,32 +234,6 @@ export default function OrdersScreen({ isDarkMode }) {
     } catch (err) { Alert.alert("Error", "Update failed"); }
   };
 
-  // --- REJECT ORDER WITH NOTIFICATION LOGIC ---
-  const handleRejectOrder = (order) => {
-    Alert.alert(
-      "Reject Order Request",
-      "Rejecting will delete this request and notify the customer. Proceed?",
-      [
-        { text: "Cancel", style: "cancel" },
-        { 
-          text: "Reject & Notify", 
-          style: "destructive", 
-          onPress: async () => {
-            try {
-              const { error } = await supabase.from('orders').delete().eq('id', order.id);
-              if (error) throw error;
-              setSelectedOrder(null);
-              fetchOrders(false);
-              Alert.alert("Success", "Order removed and customer notified.");
-            } catch (err) {
-              Alert.alert("Error", "Could not complete rejection.");
-            }
-          }
-        }
-      ]
-    );
-  };
-
   const renderItem = ({ item }) => (
     <TouchableOpacity style={[styles.orderRow, { borderBottomColor: theme.border }]} onPress={() => setSelectedOrder(item)}>
       <View>
@@ -234,7 +246,7 @@ export default function OrdersScreen({ isDarkMode }) {
       </View>
       <View style={{ alignItems: 'flex-end' }}>
         <Text style={styles.orderTime}>{new Date(item.created_at).toLocaleDateString()}</Text>
-        {item.status === 'pending' && <Text style={{ color: '#007AFF', fontSize: 10, fontWeight: 'bold', marginTop: 4 }}>NEW REQUEST</Text>}
+        {item.status === 'paid' && <Text style={{ color: '#007AFF', fontSize: 10, fontWeight: 'bold', marginTop: 4 }}>NEW REQUEST</Text>}
       </View>
     </TouchableOpacity>
   );
@@ -354,13 +366,6 @@ export default function OrdersScreen({ isDarkMode }) {
                         disabled={selectedOrder.status !== 'processing'}
                       >
                         <Text style={styles.btnText}>Ready for Pickup/Delivery</Text>
-                      </TouchableOpacity>
-
-                      <TouchableOpacity 
-                        style={[styles.statusBtn, { backgroundColor: 'transparent', borderWidth: 1, borderColor: '#FF3B30', marginTop: 10 }]} 
-                        onPress={() => handleRejectOrder(selectedOrder)}
-                      >
-                        <Text style={[styles.btnText, { color: '#FF3B30' }]}>Reject Order Request</Text>
                       </TouchableOpacity>
                     </View>
                   )}

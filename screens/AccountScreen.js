@@ -54,7 +54,7 @@ export default function AccountScreen({ isDarkMode }) {
             rating,
             comment,
             created_at,
-            profiles:customer_id (username)
+            profiles!fk_customer (username)
           `)
           .eq('laundry_id', laundryData.id)
           .order('created_at', { ascending: false });
@@ -91,12 +91,12 @@ export default function AccountScreen({ isDarkMode }) {
 
     if (isAvailable) {
       await MailComposer.composeAsync({
-        recipients: ['unangtech-s@execs.com'],
+        recipients: ['support@laundrify.com.ng'],
         subject: `Report Review - ${profile?.name}`,
         body: `I would like to report the following review:\n\nCustomer: @${username}\nComment: "${review.comment}"\nReview ID: ${review.id}\n\nReason for reporting: `,
       });
     } else {
-      Alert.alert("Support", "Please email unangtech-s@execs.com to report this review.");
+      Alert.alert("Support", "Please email support@laundrify.com.ng to report this review.");
     }
   };
 

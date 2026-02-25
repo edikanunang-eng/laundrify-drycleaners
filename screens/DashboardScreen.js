@@ -10,7 +10,8 @@ import {
   ActivityIndicator,
   Share, 
   RefreshControl,
-  Platform
+  Platform,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../supabase';
@@ -48,6 +49,10 @@ export default function DashboardScreen({ isDarkMode, navigation }) {
   const [openTime, setOpenTime] = useState('08:00');
   const [closeTime, setCloseTime] = useState('18:00');
 
+  // New fields: Availability Toggle & NIN
+  const [isActive, setIsActive] = useState(true);
+  const [nin, setNin] = useState('');
+
   // HELPER: Dynamic Currency Formatter
   const formatCurrency = (amount) => {
     try {
@@ -69,6 +74,40 @@ export default function DashboardScreen({ isDarkMode, navigation }) {
       fetchProfile();
     }, [])
   );
+
+  // Auto-update is_active based on current time vs open/close times
+  useEffect(() => {
+    const updateActiveStatus = () => {
+      if (!openTime || !closeTime) return;
+
+      const toSeconds = (t) => {
+        if (!t) return null;
+        const parts = t.split(':').map(Number);
+        return parts[0] * 3600 + parts[1] * 60 + (parts[2] || 0);
+      };
+
+      const now = new Date();
+      const nowSeconds = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+      const openSec = toSeconds(openTime);
+      const closeSec = toSeconds(closeTime);
+
+      if (openSec != null && closeSec != null) {
+        let shouldBeActive;
+        if (openSec <= closeSec) {
+          shouldBeActive = nowSeconds >= openSec && nowSeconds < closeSec;
+        } else {
+          // overnight window (e.g., 22:00 - 06:00)
+          shouldBeActive = nowSeconds >= openSec || nowSeconds < closeSec;
+        }
+        setIsActive(shouldBeActive);
+      }
+    };
+
+    updateActiveStatus();
+    // Update every minute to catch time changes
+    const interval = setInterval(updateActiveStatus, 60000);
+    return () => clearInterval(interval);
+  }, [openTime, closeTime]);
 
   const onShare = async () => {
     try {
@@ -107,7 +146,7 @@ export default function DashboardScreen({ isDarkMode, navigation }) {
       if (data) {
         setProfile(data);
         setName(data.name || '');
-        setAddress(data.address || '');
+        addressSet: setAddress(data.address || '');
         setDescription(data.description || '');
         setContactDetails(data.contact_details || '');
         setServices(data.services || {});
@@ -116,6 +155,8 @@ export default function DashboardScreen({ isDarkMode, navigation }) {
         setCurrency(data.currency_code || 'NGN');
         setOpenTime(data.open_time || '08:00');
         setCloseTime(data.close_time || '18:00');
+        setIsActive(data.is_active ?? true);
+        setNin(data.nin || '');
       }
     } catch (err) {
       console.error('Fetch error:', err);
@@ -126,22 +167,81 @@ export default function DashboardScreen({ isDarkMode, navigation }) {
 
   const saveChanges = async () => {
     if (currency.length !== 3) {
-        return Alert.alert('Invalid Currency', 'Please enter a valid 3-letter currency code (e.g., USD, NGN)');
+      return Alert.alert('Invalid Currency', 'Please enter a valid 3-letter currency code (e.g., USD, NGN)');
+    }
+
+    // Time validation: accept HH:MM or HH:MM:SS, normalize to HH:MM:SS for DB
+    const timePattern = /^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/;
+    if (openTime && !timePattern.test(openTime)) {
+      return Alert.alert('Invalid Time', 'Open time must be in HH:MM or HH:MM:SS format (24-hour)');
+    }
+    if (closeTime && !timePattern.test(closeTime)) {
+      return Alert.alert('Invalid Time', 'Close time must be in HH:MM or HH:MM:SS format (24-hour)');
+    }
+
+    const normalizeTime = (t) => {
+      if (!t) return null;
+      return t.length === 5 ? `${t}:00` : t;
+    };
+
+    const normalizedOpen = normalizeTime(openTime) || null;
+    const normalizedClose = normalizeTime(closeTime) || null;
+
+    // NIN validation (format)
+    if (!nin || nin.length !== 11 || !/^\d{11}$/.test(nin)) {
+      return Alert.alert('Invalid NIN', 'Please enter a valid 11-digit National Identification Number');
     }
 
     setLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not logged in');
+
+      // compute derived availability using normalized times (HH:MM:SS)
+      const now = new Date();
+      const nowSeconds = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+      const toSeconds = (t) => {
+        if (!t) return null;
+        const parts = t.split(':').map(Number);
+        return parts[0] * 3600 + parts[1] * 60 + (parts[2] || 0);
+      };
+
+      let derivedIsActive = isActive;
+      const openSec = toSeconds(normalizedOpen);
+      const closeSec = toSeconds(normalizedClose);
+      if (openSec != null && closeSec != null) {
+        if (openSec <= closeSec) {
+          derivedIsActive = nowSeconds >= openSec && nowSeconds < closeSec;
+        } else {
+          // overnight window
+          derivedIsActive = nowSeconds >= openSec || nowSeconds < closeSec;
+        }
+      }
+
       const { error } = await supabase.from('laundries').update({
-        name, address, description, contact_details: contactDetails,
-        services, latitude, longitude, currency_code: currency.toUpperCase(),
-        open_time: openTime,
-        close_time: closeTime, updated_at: new Date().toISOString(),
+        name,
+        address,
+        description,
+        contact_details: contactDetails,
+        services,
+        latitude,
+        longitude,
+        currency_code: currency.toUpperCase(),
+        open_time: normalizedOpen,
+        close_time: normalizedClose,
+        is_active: derivedIsActive,
+        nin: nin,
+        updated_at: new Date().toISOString(),
       }).eq('owner_id', user.id);
+
       if (error) throw error;
+
       Alert.alert('Success', 'Profile updated!');
       setEditing(false);
+      // reflect normalized display (keep UI showing HH:MM)
+      if (normalizedOpen) setOpenTime(normalizedOpen.slice(0,5));
+      if (normalizedClose) setCloseTime(normalizedClose.slice(0,5));
+      setIsActive(derivedIsActive);
       fetchProfile();
     } catch (err) {
       Alert.alert('Save Failed', err.message);
@@ -170,7 +270,6 @@ export default function DashboardScreen({ isDarkMode, navigation }) {
     ]);
   };
 
-  // Show loading indicator while fetching initial data
   if (loading && !profile) {
     return (
       <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
@@ -200,7 +299,12 @@ export default function DashboardScreen({ isDarkMode, navigation }) {
               placeholderTextColor={theme.subText}
             />
           ) : (
-            <Text style={[styles.headerTitle, { color: theme.text }]}>{profile?.name || 'Your Laundry'}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Text style={[styles.headerTitle, { color: theme.text }]}>{profile?.name || 'Your Laundry'}</Text>
+              {profile?.is_verified && (
+                <Image source={require('../assets/verified.png')} style={{ width: 50, height: 50, marginLeft: 8 }} />
+              )}
+            </View>
           )}
           
           <View style={styles.ratingRow}>
@@ -250,7 +354,7 @@ export default function DashboardScreen({ isDarkMode, navigation }) {
             <View style={styles.settingsItem}>
               <Text style={[styles.subLabel, { color: theme.subText }]}>Open</Text>
               {editing ? (
-                <TextInput style={[styles.smallInput, { backgroundColor: theme.inputBg, color: theme.inputText, borderColor: theme.border }]} value={openTime} onChangeText={setOpenTime} />
+                <TextInput style={[styles.smallInput, { backgroundColor: theme.inputBg, color: theme.inputText, borderColor: theme.border }]} value={openTime} onChangeText={setOpenTime} placeholder="08:00" />
               ) : (
                 <Text style={[styles.value, { color: theme.text }]}>{openTime}</Text>
               )}
@@ -259,7 +363,7 @@ export default function DashboardScreen({ isDarkMode, navigation }) {
             <View style={styles.settingsItem}>
               <Text style={[styles.subLabel, { color: theme.subText }]}>Close</Text>
               {editing ? (
-                <TextInput style={[styles.smallInput, { backgroundColor: theme.inputBg, color: theme.inputText, borderColor: theme.border }]} value={closeTime} onChangeText={setCloseTime} />
+                <TextInput style={[styles.smallInput, { backgroundColor: theme.inputBg, color: theme.inputText, borderColor: theme.border }]} value={closeTime} onChangeText={setCloseTime} placeholder="22:00" />
               ) : (
                 <Text style={[styles.value, { color: theme.text }]}>{closeTime}</Text>
               )}
@@ -268,14 +372,52 @@ export default function DashboardScreen({ isDarkMode, navigation }) {
 
           <View style={[styles.divider, { backgroundColor: theme.border }]} />
 
+          <View style={styles.toggleRow}>
+            <Text style={[styles.label, { color: theme.text }]}>
+              Available to Take Orders
+            </Text>
+            <TouchableOpacity
+              style={[
+                styles.toggleSwitch,
+                { backgroundColor: isActive ? '#4CAF50' : '#FF3B30' }
+              ]}
+              onPress={() => setIsActive(!isActive)}
+            >
+              <View 
+                style={[
+                  styles.toggleKnob,
+                  { transform: [{ translateX: isActive ? 24 : 0 }] }
+                ]}
+              />
+            </TouchableOpacity>
+          </View>
+
+          {editing && (
+            <View style={styles.fieldRow}>
+              <Text style={[styles.label, { color: theme.text }]}> 
+                National Identification Number (NIN)
+                <Text style={{ color: '#FF3B30' }}> *</Text>
+              </Text>
+              <TextInput
+                style={[styles.input, { backgroundColor: theme.inputBg, color: theme.inputText, borderColor: theme.border }]}
+                value={nin}
+                onChangeText={setNin}
+                keyboardType="numeric"
+                maxLength={11}
+                placeholder="Enter your 11-digit NIN"
+                placeholderTextColor={theme.subText}
+              />
+            </View>
+          )}
+
           <View style={styles.fieldRow}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-              <Text style={[styles.label, { color: theme.text }]}>Address</Text>
-              {editing && (
-                <TouchableOpacity onPress={handleGetLocation}>
-                  <Text style={styles.locationPinBtn}>📍 {latitude ? 'Pinned' : 'Pin GPS'}</Text>
-                </TouchableOpacity>
-              )}
+            <View style={{flexDirection:'row', justifyContent:'space-between'}}>
+                <Text style={[styles.label, { color: theme.text }]}>Address</Text>
+                {editing && (
+                  <TouchableOpacity onPress={handleGetLocation}>
+                    <Text style={styles.locationPinBtn}>📍 {latitude ? 'Pinned' : 'Pin GPS'}</Text>
+                  </TouchableOpacity>
+                )}
             </View>
             {editing ? (
               <TextInput style={[styles.input, { backgroundColor: theme.inputBg, color: theme.inputText, borderColor: theme.border }]} value={address} onChangeText={setAddress} />
@@ -388,5 +530,24 @@ const styles = StyleSheet.create({
   deleteButton: { backgroundColor: '#ff4444', padding: 14, borderRadius: 12, flex: 1, alignItems: 'center' },
   buttonText: { fontWeight: '700', color: '#000' },
   deleteText: { color: '#fff', fontWeight: '700' },
-  buttonDisabled: { opacity: 0.5 }
+  buttonDisabled: { opacity: 0.5 },
+  toggleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  toggleSwitch: {
+    width: 50,
+    height: 30,
+    borderRadius: 15,
+    padding: 3,
+    justifyContent: 'center',
+  },
+  toggleKnob: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#fff',
+  },
 });

@@ -149,7 +149,7 @@ export default function AuthScreen({ navigation }) {
         }
       }
 
-      Alert.alert('Success', mode === 'login' ? 'Logged in successfully!' : 'Account created! Welcome.');
+      Alert.alert('Success', mode === 'login' ? 'Logged in successfully!' : 'Account created! Welcome. Please add a valid NIN and email support to get verified');
     } catch (error) {
       console.error('Auth error:', error);
     } finally {
@@ -262,9 +262,9 @@ export default function AuthScreen({ navigation }) {
                 </TouchableOpacity>
                 <Text style={[styles.checkboxText, { color: theme.text }]}>
                   By signing up, you agree to our{' '}
-                  <Text style={{ color: theme.activeTab }} onPress={() => Linking.openURL('https://example.com/terms')}>T&Cs</Text>
+                  <Text style={{ color: theme.activeTab }} onPress={() => Linking.openURL('http://laundrify.com.ng/terms-of-service')}>ToS</Text>
                   {' '}and{' '}
-                  <Text style={{ color: theme.activeTab }} onPress={() => Linking.openURL('https://example.com/privacy')}>Privacy Policy</Text>
+                  <Text style={{ color: theme.activeTab }} onPress={() => Linking.openURL('http://laundrify.com.ng/privacy-policy')}>Privacy Policy</Text>
                 </Text>
               </View>
             </>
