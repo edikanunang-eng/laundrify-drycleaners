@@ -43,3 +43,5 @@ yarn-error.*
 GoogleService-Info.plist
 google-services.json.env*.key
 google-services.json
+supabse.js
+supabase.ts
